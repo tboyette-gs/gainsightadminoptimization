@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Gainsight Platform Health</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#EEF1F7;--surface:#fff;--border:#E2E8F2;--border2:#F0F3F8;
+  --text:#1A1E2E;--muted:#6B7A99;--faint:#9AA8C4;
+  --blue:#3084ED;--green:#00A885;--amber:#F0884D;--red:#E03E52;--purple:#6C63FF;--navy:#1F3C6E;
+  --blue-bg:#EBF3FF;--green-bg:#E6F8F5;--amber-bg:#FFF3EE;--red-bg:#FEE8EC;--purple-bg:#EEEEFF;--navy-bg:#E8EBF2;
+}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);font-size:13px;min-height:100vh;}
+
+/* ── HEADER ── */
+.app-header{background:var(--navy);color:#fff;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.18);}
+.app-title{font-size:16px;font-weight:700;letter-spacing:.2px;}
+.app-sub{font-size:10px;opacity:.65;margin-top:1px;}
+.header-right{display:flex;align-items:center;gap:12px;}
+.snap-badge{font-size:10px;background:rgba(255,255,255,.12);color:#fff;padding:3px 9px;border-radius:10px;}
+.gs-btn{font-size:11px;background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.25);padding:5px 12px;border-radius:6px;cursor:pointer;text-decoration:none;transition:background .15s;}
+.gs-btn:hover{background:rgba(255,255,255,.28);}
+
+/* ── TABS ── */
+.tab-bar{background:var(--surface);border-bottom:1px solid var(--border);display:flex;gap:0;padding:0 20px;}
+.tab{font-size:12px;font-weight:600;color:var(--muted);padding:11px 16px;cursor:pointer;border-bottom:2px solid transparent;transition:color .15s,border-color .15s;white-space:nowrap;}
+.tab.active{color:var(--blue);border-bottom-color:var(--blue);}
+.tab:hover:not(.active){color:var(--text);}
+
+/* ── LAYOUT ── */
+.page{padding:16px 20px;max-width:1200px;margin:0 auto;}
+.section{display:none;}.section.active{display:block;}
+.row{display:grid;gap:10px;margin-bottom:12px;}
+.r4{grid-template-columns:repeat(4,1fr);}
+.r2{grid-template-columns:1fr 1fr;}
+.r3{grid-template-columns:repeat(3,1fr);}
+@media(max-width:900px){.r4{grid-template-columns:1fr 1fr;}.r3{grid-template-columns:1fr 1fr;}}
+@media(max-width:600px){.r4{grid-template-columns:1fr;}.r2{grid-template-columns:1fr;}.r3{grid-template-columns:1fr;}}
+
+/* ── CARDS ── */
+.card{background:var(--surface);border-radius:10px;padding:14px 16px;border:1px solid var(--border);}
+.card-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:11px;}
+.card-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.65px;color:var(--faint);}
+.card-link{font-size:10px;color:var(--blue);text-decoration:none;}.card-link:hover{text-decoration:underline;}
+
+/* ── STAT CARDS ── */
+.stat-num{font-size:32px;font-weight:800;line-height:1;margin-bottom:3px;}
+.n-blue{color:var(--blue);}.n-red{color:var(--red);}.n-amber{color:var(--amber);}.n-green{color:var(--green);}
+.stat-label{font-size:11px;font-weight:600;color:var(--text);margin-bottom:2px;}
+.stat-sub{font-size:10px;color:var(--muted);}
+.stat-trend{display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:600;margin-top:5px;padding:2px 7px;border-radius:8px;}
+.trend-red{background:#FEE8EC;color:var(--red);}.trend-amber{background:#FFF3EE;color:var(--amber);}
+
+/* ── CHARTS ── */
+.chart-wrap{display:flex;gap:16px;align-items:center;}
+.donut-box{width:130px;height:130px;flex-shrink:0;}
+.legend-list{flex:1;display:flex;flex-direction:column;gap:5px;}
+.legend-row{display:flex;align-items:center;gap:7px;}
+.lbl{font-size:11px;color:#3D4A63;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.bar-bg{width:70px;height:5px;background:var(--bg);border-radius:3px;overflow:hidden;flex-shrink:0;}
+.bar-fill{height:100%;border-radius:3px;}
+.lcount{font-size:11px;font-weight:600;color:var(--text);width:32px;text-align:right;flex-shrink:0;}
+.chart-note{font-size:10px;color:var(--faint);margin-top:8px;font-style:italic;}
+
+/* ── FLAGS ── */
+.flag-row{display:flex;align-items:flex-start;gap:9px;padding:8px 0;border-bottom:1px solid var(--border2);}
+.flag-row:last-child{border-bottom:none;}
+.dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;margin-top:2px;}
+.dot-red{background:var(--red);}.dot-amber{background:var(--amber);}.dot-blue{background:var(--blue);}
+.flag-body{flex:1;min-width:0;}
+.flag-title{font-size:11px;font-weight:600;color:var(--text);margin-bottom:1px;}
+.flag-desc{font-size:10px;color:var(--muted);line-height:1.5;}
+.flag-count{font-size:14px;font-weight:800;flex-shrink:0;align-self:center;}
+.fc-red{color:var(--red);}.fc-amber{color:var(--amber);}
+.flag-link{font-size:10px;color:var(--blue);text-decoration:none;flex-shrink:0;align-self:center;white-space:nowrap;}
+.flag-link:hover{text-decoration:underline;}
+.hygiene-note{font-size:10px;color:var(--faint);margin-top:10px;padding-top:8px;border-top:1px solid var(--border2);font-style:italic;}
+
+/* ── SECT DIVIDER ── */
+.sect-div{display:flex;align-items:center;gap:10px;margin:20px 0 12px;}
+.sect-line{flex:1;height:1px;background:var(--border);}
+.sect-info{text-align:center;}
+.sect-head{font-size:12px;font-weight:700;color:var(--navy);white-space:nowrap;}
+.sect-sub{font-size:10px;color:var(--muted);white-space:nowrap;margin-top:1px;}
+
+/* ── FILTER PILLS ── */
+.filter-bar{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;align-items:center;}
+.filter-label{font-size:10px;font-weight:700;color:var(--faint);text-transform:uppercase;letter-spacing:.5px;margin-right:4px;}
+.pill{font-size:10px;font-weight:600;padding:4px 12px;border-radius:12px;border:1px solid var(--border);background:var(--surface);color:var(--muted);cursor:pointer;transition:all .15s;}
+.pill:hover{border-color:var(--blue);color:var(--blue);}
+.pill.active{background:var(--blue);color:#fff;border-color:var(--blue);}
+
+/* ── SIGNAL CARDS ── */
+.sig-card{background:var(--surface);border-radius:10px;border:1px solid var(--border);border-top:3px solid var(--blue);display:flex;flex-direction:column;overflow:hidden;transition:box-shadow .2s,transform .2s;}
+.sig-card:hover{box-shadow:0 4px 16px rgba(0,0,0,.1);transform:translateY(-1px);}
+.sig-head{padding:13px 15px 10px;}
+.sig-cat{display:inline-flex;align-items:center;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;padding:2px 8px;border-radius:4px;margin-bottom:8px;}
+.sig-theme{font-size:13px;font-weight:700;color:var(--text);line-height:1.35;}
+.sig-block{padding:9px 15px;border-top:1px solid var(--border2);}
+.sig-block-lbl{display:flex;align-items:center;gap:5px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--faint);margin-bottom:4px;}
+.sig-text{font-size:11px;color:#4A5568;line-height:1.6;}
+.sig-text.italic{font-style:italic;}
+.sig-build{padding:9px 15px;border-top:1px solid var(--border2);background:#F5F8FF;}
+.sig-build-lbl{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--blue);margin-bottom:4px;display:flex;align-items:center;gap:5px;}
+.sig-build-text{font-size:11px;color:var(--navy);line-height:1.6;font-weight:500;}
+.sig-footer{padding:7px 15px;border-top:1px solid var(--border2);display:flex;align-items:center;gap:5px;flex-wrap:wrap;}
+.sig-ex-lbl{font-size:9px;color:var(--faint);font-weight:600;text-transform:uppercase;letter-spacing:.4px;}
+.sig-chip{font-size:9px;background:var(--bg);color:#4A5568;padding:2px 7px;border-radius:10px;}
+
+/* ── EVIDENCE ── */
+.ev-list{display:flex;flex-direction:column;gap:7px;max-height:260px;overflow-y:auto;}
+.ev-item{display:flex;align-items:flex-start;gap:10px;padding:8px 10px;background:var(--bg);border-radius:8px;border:1px solid var(--border);}
+.ev-body{flex:1;min-width:0;}
+.ev-title{font-size:11px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.ev-text{font-size:10px;color:var(--muted);line-height:1.5;margin-top:2px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+.ev-link{font-size:10px;color:var(--blue);text-decoration:none;flex-shrink:0;padding-top:1px;}
+.ev-link:hover{text-decoration:underline;}
+
+.empty{font-size:12px;color:var(--muted);padding:8px 0;}
+</style>
+</head>
+<body>
+
+<div class="app-header">
+  <div>
+    <div class="app-title">Gainsight Platform Health</div>
+    <div class="app-sub">CS Ops · Snapshot from Gainsight CS &amp; Staircase AI</div>
+  </div>
+  <div class="header-right">
+    <span class="snap-badge">📅 Snapshot: May 13, 2026</span>
+    <a class="gs-btn" href="https://app.gainsightcloud.com/v1/ui/cockpit" target="_blank">Open Gainsight ↗</a>
+  </div>
+</div>
+
+<div class="tab-bar">
+  <div class="tab active" data-tab="hygiene">🔧 Platform Hygiene</div>
+  <div class="tab" data-tab="signals">💡 Optimization Signals</div>
+</div>
+
+<div class="page">
+
+  <!-- ═══════════════ HYGIENE ═══════════════ -->
+  <div class="section active" id="tab-hygiene">
+
+    <div class="sect-div">
+      <div class="sect-line"></div>
+      <div class="sect-info">
+        <div class="sect-head">CTA &amp; Success Plan Overview</div>
+        <div class="sect-sub">Live data · 50-record samples extrapolated to full totals</div>
+      </div>
+      <div class="sect-line"></div>
+    </div>
+
+    <div class="row r4">
+      <div class="card">
+        <div class="card-title">Total Open CTAs</div>
+        <div class="stat-num n-blue" id="cnt-ctas">1,000</div>
+        <div class="stat-label">Open CTAs</div>
+        <div class="stat-sub">in Gainsight cockpit</div>
+        <a class="card-link" href="https://app.gainsightcloud.com/v1/ui/cockpit" target="_blank" style="display:block;margin-top:8px;">Review in Cockpit ↗</a>
+      </div>
+      <div class="card">
+        <div class="card-title">Orphaned CTAs</div>
+        <div class="stat-num n-red" id="cnt-orphan">~320</div>
+        <div class="stat-label">Assigned to inactive users</div>
+        <div class="stat-sub">est. from 50-record sample</div>
+        <span class="stat-trend trend-red">⚠ High priority</span>
+      </div>
+      <div class="card">
+        <div class="card-title">Open Success Plans</div>
+        <div class="stat-num n-amber" id="cnt-sp">1,000</div>
+        <div class="stat-label">Non-closed plans</div>
+        <div class="stat-sub">in Gainsight</div>
+        <a class="card-link" href="https://app.gainsightcloud.com/v1/ui/success-plan" target="_blank" style="display:block;margin-top:8px;">Review Plans ↗</a>
+      </div>
+      <div class="card">
+        <div class="card-title">Done But Unclosed</div>
+        <div class="stat-num n-red" id="cnt-done">~360</div>
+        <div class="stat-label">Plans at 100%, still open</div>
+        <div class="stat-sub">est. from 50-record sample</div>
+        <span class="stat-trend trend-amber">⚠ Needs cleanup</span>
+      </div>
+    </div>
+
+    <div class="row r2">
+      <div class="card">
+        <div class="card-hdr">
+          <span class="card-title">CTA Status Breakdown</span>
+          <a class="card-link" href="https://app.gainsightcloud.com/v1/ui/cockpit" target="_blank">Open Cockpit ↗</a>
+        </div>
+        <div class="chart-wrap">
+          <div class="donut-box"><canvas id="cta-chart"></canvas></div>
+          <div class="legend-list" id="cta-legend"></div>
+        </div>
+        <div class="chart-note">Based on 50-record sample · Extrapolated to 1,000 total open CTAs</div>
+      </div>
+      <div class="card">
+        <div class="card-hdr">
+          <span class="card-title">Success Plan Status Breakdown</span>
+          <a class="card-link" href="https://app.gainsightcloud.com/v1/ui/success-plan" target="_blank">Open Plans ↗</a>
+        </div>
+        <div class="chart-wrap">
+          <div class="donut-box"><canvas id="sp-chart"></canvas></div>
+          <div class="legend-list" id="sp-legend"></div>
+        </div>
+        <div class="chart-note">Based on 50-record sample · Extrapolated to 1,000 total open plans</div>
+      </div>
+    </div>
+
+    <div class="sect-div">
+      <div class="sect-line"></div>
+      <div class="sect-info">
+        <div class="sect-head">Data Quality &amp; Contact Hygiene</div>
+        <div class="sect-sub">Actionable cleanup flags</div>
+      </div>
+      <div class="sect-line"></div>
+    </div>
+
+    <div class="row r2">
+      <div class="card">
+        <div class="card-hdr"><span class="card-title">Data Quality Flags</span></div>
+        <div class="flag-row">
+          <div class="dot dot-red"></div>
+          <div class="flag-body">
+            <div class="flag-title">CTAs assigned to inactive/departed users</div>
+            <div class="flag-desc">Reassign or close to eliminate noise and ensure coverage</div>
+          </div>
+          <div class="flag-count fc-red">~320</div>
+        </div>
+        <div class="flag-row">
+          <div class="dot dot-red"></div>
+          <div class="flag-body">
+            <div class="flag-title">CTAs open for more than 1 year</div>
+            <div class="flag-desc">All 50 sampled CTAs exceed 365 days — systematic aging problem</div>
+          </div>
+          <div class="flag-count fc-red">~1,000</div>
+        </div>
+        <div class="flag-row">
+          <div class="dot dot-amber"></div>
+          <div class="flag-body">
+            <div class="flag-title">CTAs with overdue tasks</div>
+            <div class="flag-desc">Verify playbooks have clear close criteria and auto-reminders</div>
+          </div>
+          <div class="flag-count fc-amber">~80</div>
+        </div>
+        <div class="flag-row">
+          <div class="dot dot-red"></div>
+          <div class="flag-body">
+            <div class="flag-title">Success plans at 100% but still open</div>
+            <div class="flag-desc">Close to reduce clutter and improve plan completion metrics</div>
+          </div>
+          <div class="flag-count fc-red">~360</div>
+        </div>
+        <div class="flag-row">
+          <div class="dot dot-amber"></div>
+          <div class="flag-body">
+            <div class="flag-title">Draft plans with past-due dates</div>
+            <div class="flag-desc">Activate or archive to keep success plan pipeline clean</div>
+          </div>
+          <div class="flag-count fc-amber">~300</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-hdr">
+          <span class="card-title">Contact Hygiene</span>
+          <a class="card-link" href="https://app.gainsightcloud.com/v1/ui/people" target="_blank">Review Contacts ↗</a>
+        </div>
+        <div class="flag-row">
+          <div class="dot dot-red"></div>
+          <div class="flag-body">
+            <div class="flag-title">Duplicate contacts detected</div>
+            <div class="flag-desc">Causes JO programs to fire twice and inflates engagement metrics</div>
+          </div>
+          <a class="flag-link" href="https://app.gainsightcloud.com/v1/ui/people" target="_blank">Review ↗</a>
+        </div>
+        <div class="flag-row">
+          <div class="dot dot-red"></div>
+          <div class="flag-body">
+            <div class="flag-title">Contacts missing email address</div>
+            <div class="flag-desc">Invisible to Journey Orchestrator — populate or archive</div>
+          </div>
+          <a class="flag-link" href="https://app.gainsightcloud.com/v1/ui/people" target="_blank">Review ↗</a>
+        </div>
+        <div class="flag-row">
+          <div class="dot dot-amber"></div>
+          <div class="flag-body">
+            <div class="flag-title">Email opt-outs present</div>
+            <div class="flag-desc">Confirm intentional before launching new JO programs</div>
+          </div>
+          <a class="flag-link" href="https://app.gainsightcloud.com/v1/ui/people" target="_blank">Review ↗</a>
+        </div>
+        <div class="flag-row">
+          <div class="dot dot-amber"></div>
+          <div class="flag-body">
+            <div class="flag-title">Unknown or unset contact role</div>
+            <div class="flag-desc">Role gaps cause contacts to fall through JO audience filters</div>
+          </div>
+          <a class="flag-link" href="https://app.gainsightcloud.com/v1/ui/people" target="_blank">Review ↗</a>
+        </div>
+        <div class="flag-row">
+          <div class="dot dot-blue"></div>
+          <div class="flag-body">
+            <div class="flag-title">Stale contacts (90+ days no activity)</div>
+            <div class="flag-desc">May have changed roles or left — validate before re-engaging</div>
+          </div>
+          <a class="flag-link" href="https://app.gainsightcloud.com/v1/ui/people" target="_blank">Review ↗</a>
+        </div>
+        <div class="hygiene-note">Contact-level counts require Gainsight UI — click links to check each category directly</div>
+      </div>
+    </div>
+
+  </div><!-- /hygiene -->
+
+  <!-- ═══════════════ SIGNALS ═══════════════ -->
+  <div class="section" id="tab-signals">
+
+    <div class="sect-div" style="margin-top:4px;">
+      <div class="sect-line"></div>
+      <div class="sect-info">
+        <div class="sect-head">Internal Optimization Signals</div>
+        <div class="sect-sub">Patterns from customer calls → gaps in our own Gainsight → what to build</div>
+      </div>
+      <div class="sect-line"></div>
+    </div>
+
+    <div class="filter-bar">
+      <span class="filter-label">Filter:</span>
+      <span class="pill active" data-cat="all">All (6)</span>
+      <span class="pill" data-cat="JO Program">JO Program</span>
+      <span class="pill" data-cat="CTA Automation">CTA Automation</span>
+      <span class="pill" data-cat="Playbook Optimization">Playbook Optimization</span>
+      <span class="pill" data-cat="Health Score Rule">Health Score Rule</span>
+      <span class="pill" data-cat="Timeline Automation">Timeline Automation</span>
+    </div>
+
+    <div class="row r3" id="sig-grid"></div>
+
+    <div class="sect-div">
+      <div class="sect-line"></div>
+      <div class="sect-info">
+        <div class="sect-head">Source Conversations</div>
+        <div class="sect-sub">From Staircase AI — names anonymized</div>
+      </div>
+      <div class="sect-line"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-hdr">
+        <span class="card-title">Supporting Evidence</span>
+        <a class="card-link" href="https://app.staircase.ai/customers" target="_blank">Open Staircase ↗</a>
+      </div>
+      <div class="ev-list" id="ev-list"></div>
+    </div>
+
+  </div><!-- /signals -->
+
+</div><!-- /page -->
+
+<script>
+/* ─── DATA ─── */
+const CTA_STATS = {
+  total: 1000,
+  byStatus: {'New':500,'Work in Progress':360,'Deferred':80,'Long Term Roadmap':40,'Waiting on someone else':20},
+  orphaned: 320, stale1yr: 1000, overdue: 80
+};
+const SP_STATS = {
+  total: 1000,
+  byStatus: {'Active':700,'Draft':300},
+  doneOpen: 360, draftPast: 300
+};
+const SIGNALS = [
+  {
+    theme:'Expansion Signals Tracked Informally',
+    category:'JO Program',
+    signal:'CSMs proactively identify expansion opportunities in customer conversations and peer-connection sessions, but these discussions are logged ad-hoc rather than triggering a structured CSQL workflow.',
+    gap:'No JO program fires when expansion readiness signals are detected. Expansion discussions stay in email threads and notes — not converted to CSQL CTAs with a defined follow-up cadence.',
+    build:'Build a JO program triggered by Staircase positive sentiment spikes or license utilization thresholds — auto-create a CSQL CTA with a pre-filled expansion playbook linked to the account\'s renewal timeline.',
+    exampleCustomers:['Account A','Account B','Account C'],
+    color:'#6C63FF',bg:'#EEEEFF'
+  },
+  {
+    theme:'Risk Detection Relies on Manual Observation',
+    category:'CTA Automation',
+    signal:'CSMs manually identify renewal risk signals in conversations — tone shifts, competitive mentions, value gaps, stakeholder disengagement — with no automated detection layer surfacing these proactively.',
+    gap:'No rules engine triggers fire CTAs when Staircase detects negative sentiment trends or contact disengagement. CSMs catch risks in calls and must manually create CTAs, often after the risk has escalated.',
+    build:'Wire Staircase sentiment and engagement scores into rules engine triggers: auto-fire a Risk CTA when negative sentiment persists 2+ weeks, a key contact goes silent 45+ days, or competitive topics spike.',
+    exampleCustomers:['Account D','Account E','Account F'],
+    color:'#E03E52',bg:'#FEE8EC'
+  },
+  {
+    theme:'CTAs Aging With No Automated Follow-Up',
+    category:'Playbook Optimization',
+    signal:'With all sampled CTAs exceeding 365 days open, it\'s clear that existing playbooks lack automated aging nudges — CTAs get created but never systematically resolved or escalated.',
+    gap:'No rules fire a status-check CTA or manager alert when a parent CTA ages past 90 or 180 days. CTAs accumulate indefinitely, creating a backlog that undermines cockpit credibility.',
+    build:'Create rules engine logic: auto-fire a status-check CTA when a parent CTA hits 90 days with no status change, and escalate to the CSM\'s manager at 180+ days with a summary of the aging item.',
+    exampleCustomers:['Account A','Account B','Account C'],
+    color:'#F0884D',bg:'#FFF3EE'
+  },
+  {
+    theme:'EBR Prep Still Fully Manual',
+    category:'Timeline Automation',
+    signal:'CSMs spend significant time before EBRs manually assembling health data, open CTAs, and success plan status — a pattern that repeats across accounts with no consistent output format.',
+    gap:'No JO program detects upcoming EBR timeline entries and assembles the pre-meeting brief automatically. Prep quality and depth vary by CSM rather than being systematically enforced.',
+    build:'Build a JO program that detects EBR entries on the timeline 14 days out and auto-creates a prep CTA — templated agenda pulling health score, open CTAs, plan progress, and recent Staircase conversation signals.',
+    exampleCustomers:['Account B','Account C'],
+    color:'#3084ED',bg:'#EBF3FF'
+  },
+  {
+    theme:'Health Scores Missing Conversation Intelligence',
+    category:'Health Score Rule',
+    signal:'Staircase captures clear health signals — executive engagement, sentiment trends, relationship depth — but these conversation insights don\'t automatically update Gainsight health scorecards.',
+    gap:'Our scorecard relies on usage data and survey results but doesn\'t incorporate Staircase relationship intelligence. CSMs manually adjust scores based on call intuition, creating inconsistency across the book.',
+    build:'Wire Staircase engagement score and 30-day sentiment trend into a dedicated Gainsight health measure. Set a rule to flag accounts where conversation health diverges from usage-based health by more than one tier.',
+    exampleCustomers:['Account A','Account F'],
+    color:'#00A885',bg:'#E6F8F5'
+  },
+  {
+    theme:'Integration Risk Escalated Without Automation',
+    category:'Playbook Optimization',
+    signal:'CSMs repeatedly handle data quality issues, integration challenges, and scope misalignments through manual escalation and status calls — no playbook surfaces these as structured technical risk CTAs.',
+    gap:'Current playbooks don\'t have automated triggers for integration risk signals or scope changes. CSMs manually escalate via email threads rather than creating Technical Risk CTAs with defined resolution steps.',
+    build:'Create a Technical Risk playbook triggered when Staircase detects recurring operational friction themes or support ticket volume spikes — routing to the right internal team with SLA-based escalation steps.',
+    exampleCustomers:['Account D','Account E'],
+    color:'#F0884D',bg:'#FFF3EE'
+  }
+];
+
+const EVIDENCE = [
+  {title:'Account A — Expansion outreach not tracked in a structured workflow',text:'CSMs proactively reached out to share internal best practices for managing strategic accounts and monitoring expansion opportunities, including offering peer connections — activities not formally tracked.',url:'https://app.staircase.ai/customers'},
+  {title:'Account B — Renewal and expansion discussions in weekly updates only',text:'Weekly TAM updates include ongoing discussions about renewal and expansion in response to identified risks, but these are not formally logged as structured expansion opportunities in the workflow.',url:'https://app.staircase.ai/customers'},
+  {title:'Account C — Expansion readiness signals discussed in demos, not actioned',text:'Presentation to this account highlighted AI-driven insights for expansion readiness and renewal likelihood, but some signals and feedback loops are discussed informally and not consistently actioned.',url:'https://app.staircase.ai/customers'},
+  {title:'Account D — Recurring manual CSM intervention for operational issues',text:'Recurring manual CSM intervention due to complex infrastructure, convoluted workarounds, user confusion, and lack of automated reporting, progress tracking, and localization across the account.',url:'https://app.staircase.ai/customers'},
+  {title:'Account E — Data quality and integration gaps require manual escalation',text:'Projects show recurring manual CSM handling of data quality issues, scope misunderstandings, resource constraints, and communication gaps, with a need for expectation management and escalation due to lack of automation.',url:'https://app.staircase.ai/customers'},
+  {title:'Account F — CSMs manually detecting renewal risk signals in conversations',text:'CSMs manually detect renewal risks including tone shifts, value gaps, competitive mentions, and stakeholder disengagement because there is no automated, reliable signal-driven process for surfacing these risks.',url:'https://app.staircase.ai/customers'}
+];
+
+/* ─── CHARTS ─── */
+const PALETTE = ['#3084ED','#00A885','#F0884D','#E03E52','#9B59B6','#F5A623','#C5CDD9'];
+function donut(id, labels, vals) {
+  new Chart(document.getElementById(id), {
+    type: 'doughnut',
+    data: { labels, datasets: [{ data: vals, backgroundColor: PALETTE, borderWidth: 2, borderColor: '#fff' }] },
+    options: { responsive:true, maintainAspectRatio:true, cutout:'68%',
+      plugins:{ legend:{display:false}, tooltip:{callbacks:{label:c=>` ${c.label}: ${c.raw.toLocaleString()}`}} } }
+  });
+}
+function legend(elId, labels, vals) {
+  const el = document.getElementById(elId), max = Math.max(...vals, 1);
+  labels.forEach((lbl, i) => {
+    const row = document.createElement('div'); row.className = 'legend-row';
+    row.innerHTML = `<div class="lbl" title="${lbl}">${lbl}</div><div class="bar-bg"><div class="bar-fill" style="width:${Math.round(vals[i]/max*100)}%;background:${PALETTE[i%PALETTE.length]}"></div></div><div class="lcount">${vals[i].toLocaleString()}</div>`;
+    el.appendChild(row);
+  });
+}
+
+const ctaL = Object.keys(CTA_STATS.byStatus), ctaV = ctaL.map(l=>CTA_STATS.byStatus[l]);
+const spL  = Object.keys(SP_STATS.byStatus),  spV  = spL.map(l=>SP_STATS.byStatus[l]);
+donut('cta-chart', ctaL, ctaV);  legend('cta-legend', ctaL, ctaV);
+donut('sp-chart',  spL,  spV);   legend('sp-legend',  spL,  spV);
+
+/* ─── SIGNAL CARDS ─── */
+function renderSignals(cat) {
+  const grid = document.getElementById('sig-grid');
+  grid.innerHTML = '';
+  const filtered = cat === 'all' ? SIGNALS : SIGNALS.filter(s => s.category === cat);
+  filtered.forEach(sig => {
+    const card = document.createElement('div'); card.className = 'sig-card'; card.dataset.cat = sig.category;
+    card.style.borderTopColor = sig.color;
+    const chips = sig.exampleCustomers.map(c=>`<span class="sig-chip">${c}</span>`).join('');
+    card.innerHTML = `
+      <div class="sig-head">
+        <div class="sig-cat" style="background:${sig.bg};color:${sig.color}">${sig.category}</div>
+        <div class="sig-theme">${sig.theme}</div>
+      </div>
+      <div class="sig-block">
+        <div class="sig-block-lbl">📞 Conversation signal</div>
+        <div class="sig-text italic">${sig.signal}</div>
+      </div>
+      <div class="sig-block">
+        <div class="sig-block-lbl">⚠️ Internal gap</div>
+        <div class="sig-text">${sig.gap}</div>
+      </div>
+      <div class="sig-build">
+        <div class="sig-build-lbl">🔨 Build this internally</div>
+        <div class="sig-build-text">${sig.build}</div>
+      </div>
+      <div class="sig-footer">
+        <span class="sig-ex-lbl">Seen in:</span>${chips}
+      </div>`;
+    grid.appendChild(card);
+  });
+}
+renderSignals('all');
+
+/* ─── EVIDENCE ─── */
+const evList = document.getElementById('ev-list');
+EVIDENCE.forEach(ev => {
+  const item = document.createElement('div'); item.className = 'ev-item';
+  item.innerHTML = `<div class="ev-body"><div class="ev-title">${ev.title}</div><div class="ev-text">${ev.text}</div></div><a class="ev-link" href="${ev.url}" target="_blank">View ↗</a>`;
+  evList.appendChild(item);
+});
+
+/* ─── TABS ─── */
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
+  });
+});
+
+/* ─── FILTER PILLS ─── */
+document.querySelectorAll('.pill').forEach(pill => {
+  pill.addEventListener('click', () => {
+    document.querySelectorAll('.pill').forEach(p => p.classList.remove('active'));
+    pill.classList.add('active');
+    renderSignals(pill.dataset.cat);
+  });
+});
+
+/* ─── ANIMATED COUNTERS ─── */
+function animateCount(el, target, prefix='', suffix='') {
+  const num = parseInt(target.replace(/[^0-9]/g,''));
+  const prefix2 = target.startsWith('~') ? '~' : '';
+  let start = 0, dur = 800, step = dur/60;
+  const inc = num / (dur/step);
+  const timer = setInterval(() => {
+    start = Math.min(start + inc, num);
+    el.textContent = prefix2 + Math.round(start).toLocaleString();
+    if (start >= num) clearInterval(timer);
+  }, step);
+}
+setTimeout(() => {
+  animateCount(document.getElementById('cnt-ctas'),  '1000');
+  animateCount(document.getElementById('cnt-orphan'), '~320');
+  animateCount(document.getElementById('cnt-sp'),    '1000');
+  animateCount(document.getElementById('cnt-done'),  '~360');
+}, 150);
+</script>
+</body>
+</html>
