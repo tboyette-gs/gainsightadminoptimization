@@ -323,26 +323,7 @@ const SOURCE_CONVOS = [
   { title:'Account F — Onboarding Stall',        text:'Customer has not completed onboarding milestones at 60 days post go-live. No automated milestone-tracking program in place.',             url:'https://app.staircase.ai/' },
 ];
 
-/* ── RENDER ── */
-function donut(id, items) {
-  new Chart(document.getElementById(id), {
-    type: 'doughnut',
-    data: { labels: items.map(s=>s.name), datasets: [{ data: items.map(s=>s.count), backgroundColor: items.map(s=>s.color), borderWidth: 2, borderColor: '#fff' }] },
-    options: { responsive: true, maintainAspectRatio: true, cutout: '70%', plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => ` ${c.label}: ${c.raw}` } } } }
-  });
-}
-function buildLegend(elId, items) {
-  const el = document.getElementById(elId);
-  const max = Math.max(...items.map(i=>i.count), 1);
-  items.forEach(item => {
-    const row = document.createElement('div'); row.className = 'legend-row';
-    row.innerHTML = `<div class="l-dot" style="background:${item.color}"></div><div class="l-label" title="${item.name}">${item.name}</div><div class="l-bar-bg"><div class="l-bar-fill" style="width:${Math.round(item.count/max*100)}%;background:${item.color}"></div></div><div class="l-count">${item.count}</div>`;
-    el.appendChild(row);
-  });
-}
-
-donut('cta-chart', CTA_STATUSES); buildLegend('cta-legend', CTA_STATUSES);
-donut('sp-chart',  SP_STATUSES);  buildLegend('sp-legend',  SP_STATUSES);
+/* ── RENDER: all non-chart content first so a missing library never blocks it ── */
 
 FLAGS.forEach(f => {
   const row = document.createElement('div'); row.className = 'flag-row';
@@ -385,6 +366,33 @@ SOURCE_CONVOS.forEach(ev => {
   item.appendChild(body); item.appendChild(btn);
   document.getElementById('convo-list').appendChild(item);
 });
+
+/* ── CHARTS: last, wrapped in try/catch — failure here won't break anything above ── */
+function buildLegend(elId, items) {
+  const el = document.getElementById(elId);
+  const max = Math.max(...items.map(i=>i.count), 1);
+  items.forEach(item => {
+    const row = document.createElement('div'); row.className = 'legend-row';
+    row.innerHTML = `<div class="l-dot" style="background:${item.color}"></div><div class="l-label" title="${item.name}">${item.name}</div><div class="l-bar-bg"><div class="l-bar-fill" style="width:${Math.round(item.count/max*100)}%;background:${item.color}"></div></div><div class="l-count">${item.count}</div>`;
+    el.appendChild(row);
+  });
+}
+buildLegend('cta-legend', CTA_STATUSES);
+buildLegend('sp-legend',  SP_STATUSES);
+
+try {
+  function donut(id, items) {
+    new Chart(document.getElementById(id), {
+      type: 'doughnut',
+      data: { labels: items.map(s=>s.name), datasets: [{ data: items.map(s=>s.count), backgroundColor: items.map(s=>s.color), borderWidth: 2, borderColor: '#fff' }] },
+      options: { responsive: true, maintainAspectRatio: true, cutout: '70%', plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => ` ${c.label}: ${c.raw}` } } } }
+    });
+  }
+  donut('cta-chart', CTA_STATUSES);
+  donut('sp-chart',  SP_STATUSES);
+} catch(e) {
+  /* Chart.js unavailable — legends already rendered above, charts silently skipped */
+}
 </script>
 </body>
 </html>
